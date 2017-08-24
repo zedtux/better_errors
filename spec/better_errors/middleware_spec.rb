@@ -64,6 +64,14 @@ module BetterErrors
         expect(body.join).to match /No errors have been recorded yet./
       end
 
+      it 'does not attempt to use ActionDispatch::ExceptionWrapper with a nil exception' do
+        ad_ew = double("ActionDispatch::ExceptionWrapper")
+        stub_const('ActionDispatch::ExceptionWrapper', ad_ew)
+        expect(ad_ew).to_not receive :new
+
+        status, headers, body = app.call("PATH_INFO" => "/__better_errors")
+      end
+
       it "shows that no errors have been recorded on any subfolder path" do
         status, headers, body = app.call("PATH_INFO" => "/any_sub/folder/path/__better_errors")
         expect(body.join).to match /No errors have been recorded yet./
@@ -174,6 +182,84 @@ module BetterErrors
         allow(BetterErrors).to receive(:logger).and_return(logger)
 
         app.call({})
+      end
+    end
+
+    context "requesting the variables for a specific frame" do
+      let(:env) { {} }
+      let(:result) {
+        app.call(
+          "PATH_INFO" => "/__better_errors/#{id}/#{method}",
+          # This is a POST request, and this is the body of the request.
+          "rack.input" => StringIO.new('{"index": 0}'),
+        )
+      }
+      let(:status) { result[0] }
+      let(:headers) { result[1] }
+      let(:body) { result[2].join }
+      let(:json_body) { JSON.parse(body) }
+      let(:id) { 'abcdefg' }
+      let(:method) { 'variables' }
+
+      context 'when no errors have been recorded' do
+        it 'returns a JSON error' do
+          expect(json_body).to match(
+            'error' => 'No exception information available',
+            'explanation' => /application has been restarted/,
+          )
+        end
+
+        context 'when Middleman is in use' do
+          let!(:middleman) { class_double("Middleman").as_stubbed_const }
+          it 'returns a JSON error' do
+            expect(json_body['explanation'])
+              .to match(/Middleman reloads all dependencies/)
+          end
+        end
+
+        context 'when Shotgun is in use' do
+          let!(:shotgun) { class_double("Shotgun").as_stubbed_const }
+
+          it 'returns a JSON error' do
+            expect(json_body['explanation'])
+              .to match(/The shotgun gem/)
+          end
+
+          context 'when Hanami is also in use' do
+            let!(:hanami) { class_double("Hanami").as_stubbed_const }
+            it 'returns a JSON error' do
+              expect(json_body['explanation'])
+                .to match(/--no-code-reloading/)
+            end
+          end
+        end
+      end
+
+      context 'when an error has been recorded' do
+        let(:error_page) { ErrorPage.new(exception, env) }
+        before do
+          app.instance_variable_set('@error_page', error_page)
+        end
+
+        context 'but it does not match the request' do
+          it 'returns a JSON error' do
+            expect(json_body).to match(
+              'error' => 'Session expired',
+              'explanation' => /no longer available in memory/,
+            )
+          end
+        end
+
+        context 'and it matches the request', :focus do
+          let(:id) { error_page.id }
+
+          it 'returns a JSON error' do
+            expect(error_page).to receive(:do_variables).and_return(html: "<content>")
+            expect(json_body).to match(
+              'html' => '<content>',
+            )
+          end
+        end
       end
     end
   end

@@ -83,7 +83,7 @@ module BetterErrors
 
       let!(:exception) { raise SpacedError, "Danger Warning!" rescue $! }
 
-      it 'should not include leading blank lines from exception_message' do
+      it 'does not include leading blank lines in exception_message' do
         expect(exception.message).to match(/\A\n\n/)
         expect(error_page.exception_message).not_to match(/\A\n\n/)
       end
@@ -117,6 +117,87 @@ module BetterErrors
 
       html = error_page.do_variables("index" => 0)[:html]
       html.should_not include "object too large"
+    end
+
+    describe '#do_eval' do
+      let(:exception) { empty_binding.eval("raise") rescue $! }
+      subject(:do_eval) { error_page.do_eval("index" => 0, "source" => command) }
+      let(:command) { 'EvalTester.stuff_was_done(:yep)' }
+      before do
+        stub_const('EvalTester', eval_tester)
+      end
+      let(:eval_tester) { double('EvalTester', stuff_was_done: 'response') }
+
+      context 'without binding_of_caller' do
+        before do
+          skip("Disabled with binding_of_caller") if defined? ::BindingOfCaller
+        end
+
+        it "does not evaluate the code" do
+          do_eval
+          expect(eval_tester).to_not have_received(:stuff_was_done).with(:yep)
+        end
+
+        it 'returns an error indicating no REPL' do
+          expect(do_eval).to include(
+            error: "REPL unavailable in this stack frame",
+          )
+        end
+      end
+      context 'with binding_of_caller available' do
+        before do
+          skip("Disabled without binding_of_caller") unless defined? ::BindingOfCaller
+        end
+
+        context 'with Pry disabled or unavailable' do
+          it "evaluates the code" do
+            do_eval
+            expect(eval_tester).to have_received(:stuff_was_done).with(:yep)
+          end
+
+          it 'returns a hash of the code and its result' do
+            expect(do_eval).to include(
+              highlighted_input: /stuff_was_done/,
+              prefilled_input: '',
+              prompt: '>>',
+              result: "=> \"response\"\n",
+            )
+          end
+        end
+
+        context 'with Pry enabled' do
+          before do
+            skip("Disabled without pry") unless defined? ::Pry
+
+            BetterErrors.use_pry!
+            # Cause the provider to be unselected, so that it will be re-detected.
+            BetterErrors::REPL.provider = nil
+          end
+          after do
+            BetterErrors::REPL::PROVIDERS.shift
+            BetterErrors::REPL.provider = nil
+
+            # Ensure the Pry REPL file has not been included. If this is not done,
+            # the constant leaks into other examples.
+            BetterErrors::REPL.send(:remove_const, :Pry)
+          end
+
+          it "evaluates the code" do
+            BetterErrors::REPL.provider
+            do_eval
+            expect(eval_tester).to have_received(:stuff_was_done).with(:yep)
+          end
+
+          it 'returns a hash of the code and its result' do
+            expect(do_eval).to include(
+              highlighted_input: /stuff_was_done/,
+              prefilled_input: '',
+              prompt: '>>',
+              result: "=> \"response\"\n",
+            )
+          end
+        end
+      end
     end
   end
 end
