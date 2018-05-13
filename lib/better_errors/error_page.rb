@@ -1,6 +1,6 @@
-require "cgi"
-require "json"
-require "securerandom"
+require 'cgi'
+require 'json'
+require 'securerandom'
 
 module BetterErrors
   # @private
@@ -26,22 +26,22 @@ module BetterErrors
       @id ||= SecureRandom.hex(8)
     end
 
-    def render(template_name = "main")
+    def render(template_name = 'main')
       binding.eval(self.class.template(template_name).src)
     end
 
     def do_variables(opts)
       load_frame_from(opts)
       @var_start_time = Time.now.to_f
-      { html: render("variable_info") }
+      { html: render('variable_info') }
     end
 
     def do_eval(opts)
-      index = opts["index"].to_i
-      code = opts["source"]
+      index = opts['index'].to_i
+      code = opts['source']
 
       unless (binding = backtrace_frames[index].frame_binding)
-        return { error: "REPL unavailable in this stack frame" }
+        return { error: 'REPL unavailable in this stack frame' }
       end
 
       @repls[index] ||= REPL.provider.new(binding, exception)
@@ -56,7 +56,7 @@ module BetterErrors
       @frame.lowerlines += 5 if opts['direction'] == 'down'
 
       @var_start_time = Time.now.to_f
-      { html: render("trace_info") }
+      { html: render('trace_info') }
     end
 
     def backtrace_frames
@@ -79,7 +79,8 @@ module BetterErrors
       application_frames.first || backtrace_frames.first
     end
 
-  private
+    private
+
     def editor_url(frame)
       BetterErrors.editor[frame.filename, frame.line]
     end
@@ -93,11 +94,11 @@ module BetterErrors
     end
 
     def uri_prefix
-      env["SCRIPT_NAME"] || ""
+      env['SCRIPT_NAME'] || ''
     end
 
     def request_path
-      env["PATH_INFO"]
+      env['PATH_INFO']
     end
 
     def html_formatted_code_block(frame)
@@ -110,7 +111,7 @@ module BetterErrors
     end
 
     def text_heading(char, str)
-      str + "\n" + char*str.size
+      str + "\n" + char * str.size
     end
 
     def inspect_value(obj)
@@ -129,7 +130,7 @@ module BetterErrors
       else
         "<span class='unsupported'>(object too large. "\
           "Modify #{CGI.escapeHTML(obj.class.to_s)}#inspect "\
-          "or increase BetterErrors.maximum_variable_inspect_size)</span>"
+          'or increase BetterErrors.maximum_variable_inspect_size)</span>'
       end
     end
 
@@ -150,7 +151,7 @@ module BetterErrors
     end
 
     def load_frame_from(opts)
-      index = opts["index"].to_i
+      index = opts['index'].to_i
       @frame = backtrace_frames[index]
     end
   end

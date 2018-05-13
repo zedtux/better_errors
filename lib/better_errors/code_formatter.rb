@@ -1,16 +1,16 @@
 module BetterErrors
   # @private
   class CodeFormatter
-    require "better_errors/code_formatter/html"
-    require "better_errors/code_formatter/text"
+    require 'better_errors/code_formatter/html'
+    require 'better_errors/code_formatter/text'
 
     FILE_TYPES = {
-      ".rb"   => :ruby,
-      ""      => :ruby,
-      ".html" => :html,
-      ".erb"  => :erb,
-      ".haml" => :haml
-    }
+      '.rb'   => :ruby,
+      ''      => :ruby,
+      '.html' => :html,
+      '.erb'  => :erb,
+      '.haml' => :haml
+    }.freeze
 
     attr_reader :filename, :line, :upperlines, :lowerlines
 
@@ -39,10 +39,10 @@ module BetterErrors
       FILE_TYPES[ext] || :text
     end
 
-    def each_line_of(lines, &blk)
-      line_range.zip(lines).map { |current_line, str|
+    def each_line_of(lines)
+      line_range.zip(lines).map do |current_line, str|
         yield (current_line == line), current_line, str
-      }
+      end
     end
 
     def highlighted_lines
@@ -51,7 +51,7 @@ module BetterErrors
 
     def context_lines
       range = line_range
-      source_lines[(range.begin - 1)..(range.end - 1)] or raise Errno::EINVAL
+      source_lines[(range.begin - 1)..(range.end - 1)] || raise(Errno::EINVAL)
     end
 
     def source_lines

@@ -1,4 +1,4 @@
-require "set"
+require 'set'
 
 module BetterErrors
   # @private
@@ -28,7 +28,7 @@ module BetterErrors
     end
 
     def application_path
-      filename[(BetterErrors.application_root.length+1)..-1]
+      filename[(BetterErrors.application_root.length + 1)..-1]
     end
 
     def gem?
@@ -37,15 +37,13 @@ module BetterErrors
 
     def gem_path
       if path = Gem.path.detect { |p| filename.index(p) == 0 }
-        gem_name_and_version, path = filename.sub("#{path}/gems/", "").split("/", 2)
+        gem_name_and_version, path = filename.sub("#{path}/gems/", '').split('/', 2)
         /(?<gem_name>.+)-(?<gem_version>[\w.]+)/ =~ gem_name_and_version
         "#{gem_name} (#{gem_version}) #{path}"
       end
     end
 
-    def class_name
-      @class_name
-    end
+    attr_reader :class_name
 
     def method_name
       @method_name || @name
@@ -63,57 +61,58 @@ module BetterErrors
 
     def pretty_path
       case context
-      when :application;  application_path
-      when :gem;          gem_path
-      else                filename
+      when :application then  application_path
+      when :gem then          gem_path
+      else filename
       end
     end
 
     def local_variables
       return {} unless frame_binding
 
-      frame_binding.eval("local_variables").each_with_object({}) do |name, hash|
+      frame_binding.eval('local_variables').each_with_object({}) do |name, hash|
         # Ruby 2.2's local_variables will include the hidden #$! variable if
         # called from within a rescue context. This is not a valid variable name,
         # so the local_variable_get method complains. This should probably be
         # considered a bug in Ruby itself, but we need to work around it.
         next if name == :"\#$!"
 
-        if defined?(frame_binding.local_variable_get)
-          hash[name] = frame_binding.local_variable_get(name)
-        else
-          hash[name] = frame_binding.eval(name.to_s)
-        end
+        hash[name] = if defined?(frame_binding.local_variable_get)
+                       frame_binding.local_variable_get(name)
+                     else
+                       frame_binding.eval(name.to_s)
+                     end
       end
     end
 
     def instance_variables
       return {} unless frame_binding
-      Hash[visible_instance_variables.map { |x|
+      Hash[visible_instance_variables.map do |x|
         [x, frame_binding.eval(x.to_s)]
-      }]
+      end]
     end
 
     def visible_instance_variables
-      frame_binding.eval("instance_variables") - BetterErrors.ignored_instance_variables
+      frame_binding.eval('instance_variables') - BetterErrors.ignored_instance_variables
     end
 
     def to_s
       "#{pretty_path}:#{line}:in `#{name}'"
     end
 
-  private
+    private
+
     def set_pretty_method_name
       name =~ /\A(block (\([^)]+\) )?in )?/
-      recv = frame_binding.eval("self")
+      recv = frame_binding.eval('self')
 
-      return unless method_name = frame_binding.eval("::Kernel.__method__")
+      return unless method_name = frame_binding.eval('::Kernel.__method__')
 
       if Module === recv
-        @class_name = "#{$1}#{recv}"
+        @class_name = "#{Regexp.last_match(1)}#{recv}"
         @method_name = ".#{method_name}"
       else
-        @class_name = "#{$1}#{Kernel.instance_method(:class).bind(recv).call}"
+        @class_name = "#{Regexp.last_match(1)}#{Kernel.instance_method(:class).bind(recv).call}"
         @method_name = "##{method_name}"
       end
     end

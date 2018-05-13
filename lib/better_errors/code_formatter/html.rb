@@ -6,17 +6,17 @@ module BetterErrors
     end
 
     def formatted_lines
-      each_line_of(highlighted_lines) { |highlight, current_line, str|
-        class_name = highlight ? "highlight" : ""
-        sprintf '<pre class="%s">%s</pre>', class_name, str
-      }
+      each_line_of(highlighted_lines) do |highlight, _current_line, str|
+        class_name = highlight ? 'highlight' : ''
+        format '<pre class="%s">%s</pre>', class_name, str
+      end
     end
 
     def formatted_nums
-      each_line_of(highlighted_lines) { |highlight, current_line, str|
-        class_name = highlight ? "highlight" : ""
-        sprintf '<span class="%s">%5d</span>', class_name, current_line
-      }
+      each_line_of(highlighted_lines) do |highlight, current_line, _str|
+        class_name = highlight ? 'highlight' : ''
+        format '<span class="%s">%5d</span>', class_name, current_line
+      end
     end
 
     def expander_icon
@@ -39,7 +39,7 @@ module BetterErrors
         code << '<span class="expander">' \
                   "<a href='#' data-direction='up' title='Expand'>" \
                     "#{expander_icon}" \
-                  "</a>" \
+                  '</a>' \
                 '</span>'
       end
 
@@ -50,7 +50,7 @@ module BetterErrors
         code << '<span class="expander">' \
                   "<a href='#' data-direction='down' title='Expand'>" \
                     "#{expander_icon}" \
-                  "</a>" \
+                  '</a>' \
                 '</span>'
       end
 
