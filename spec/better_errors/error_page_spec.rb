@@ -1,14 +1,20 @@
-require "spec_helper"
+require 'spec_helper'
 
 module BetterErrors
   describe ErrorPage do
-    let!(:exception) { raise ZeroDivisionError, "you divided by zero you silly goose!" rescue $! }
+    let!(:exception) do
+      begin
+                         raise ZeroDivisionError, 'you divided by zero you silly goose!'
+                       rescue StandardError
+                         $ERROR_INFO
+                       end
+    end
 
-    let(:error_page) { ErrorPage.new exception, { "PATH_INFO" => "/some/path" } }
+    let(:error_page) { ErrorPage.new exception, 'PATH_INFO' => '/some/path' }
 
     let(:response) { error_page.render }
 
-    let(:exception_binding) {
+    let(:exception_binding) do
       local_a = :value_for_local_a
       local_b = :value_for_local_b
 
@@ -16,47 +22,53 @@ module BetterErrors
       @inst_d = :value_for_inst_d
 
       binding
-    }
-
-    it "includes the error message" do
-      expect(response).to include("you divided by zero you silly goose!")
     end
 
-    it "includes the request path" do
-      expect(response).to include("/some/path")
+    it 'includes the error message' do
+      expect(response).to include('you divided by zero you silly goose!')
     end
 
-    it "includes the exception class" do
-      expect(response).to include("ZeroDivisionError")
+    it 'includes the request path' do
+      expect(response).to include('/some/path')
     end
 
-    context "variable inspection" do
-      let(:exception) { exception_binding.eval("raise") rescue $! }
+    it 'includes the exception class' do
+      expect(response).to include('ZeroDivisionError')
+    end
+
+    context 'variable inspection' do
+      let(:exception) do
+        begin
+                          exception_binding.eval('raise')
+                        rescue StandardError
+                          $ERROR_INFO
+                        end
+      end
 
       if BetterErrors.binding_of_caller_available?
-        it "shows local variables" do
-          html = error_page.do_variables("index" => 0)[:html]
+        it 'shows local variables' do
+          html = error_page.do_variables('index' => 0)[:html]
           expect(html).to include('<td class="name">local_a</td>')
-          expect(html).to include("<pre>:value_for_local_a</pre>")
+          expect(html).to include('<pre>:value_for_local_a</pre>')
           expect(html).to include('<td class="name">local_b</td>')
-          expect(html).to include("<pre>:value_for_local_b</pre>")
+          expect(html).to include('<pre>:value_for_local_b</pre>')
         end
 
-        it "shows instance variables" do
-          html = error_page.do_variables("index" => 0)[:html]
+        it 'shows instance variables' do
+          html = error_page.do_variables('index' => 0)[:html]
           expect(html).to include('<td class="name">' + '@inst_c</td>')
-          expect(html).to include("<pre>" + ":value_for_inst_c</pre>")
+          expect(html).to include('<pre>' + ':value_for_inst_c</pre>')
           expect(html).to include('<td class="name">' + '@inst_d</td>')
-          expect(html).to include("<pre>" + ":value_for_inst_d</pre>")
+          expect(html).to include('<pre>' + ':value_for_inst_d</pre>')
         end
 
-        it "does not show filtered variables" do
+        it 'does not show filtered variables' do
           allow(BetterErrors).to receive(:ignored_instance_variables).and_return([:@inst_d])
-          html = error_page.do_variables("index" => 0)[:html]
+          html = error_page.do_variables('index' => 0)[:html]
           expect(html).to include('<td class="name">' + '@inst_c</td>')
-          expect(html).to include("<pre>" + ":value_for_inst_c</pre>")
+          expect(html).to include('<pre>' + ':value_for_inst_c</pre>')
           expect(html).not_to include('<td class="name">' + '@inst_d</td>')
-          expect(html).not_to include("<pre>" + ":value_for_inst_d</pre>")
+          expect(html).not_to include('<pre>' + ':value_for_inst_d</pre>')
         end
 
         context 'when maximum_variable_inspect_size is set' do
@@ -65,31 +77,31 @@ module BetterErrors
           end
 
           context 'with a variable that is not larger than maximum_variable_inspect_size' do
-            let(:exception_binding) {
+            let(:exception_binding) do
               @small = content
 
               binding
-            }
+            end
             let(:content) { 'A' * 480 }
 
-            it "shows the variable content" do
-              html = error_page.do_variables("index" => 0)[:html]
+            it 'shows the variable content' do
+              html = error_page.do_variables('index' => 0)[:html]
               expect(html).to include(content)
             end
           end
 
           context 'with a variable that is larger than maximum_variable_inspect_size' do
-            let(:exception_binding) {
+            let(:exception_binding) do
               @big = content
 
               binding
-            }
+            end
             let(:content) { 'A' * 501 }
 
-            it "includes an indication that the variable was too large" do
-              html = error_page.do_variables("index" => 0)[:html]
+            it 'includes an indication that the variable was too large' do
+              html = error_page.do_variables('index' => 0)[:html]
               expect(html).to_not include(content)
-              expect(html).to include("object too large")
+              expect(html).to include('object too large')
             end
           end
         end
@@ -99,32 +111,32 @@ module BetterErrors
             BetterErrors.maximum_variable_inspect_size = nil
           end
 
-          let(:exception_binding) {
+          let(:exception_binding) do
             @big = content
 
             binding
-          }
+          end
           let(:content) { 'A' * 100_001 }
 
-          it "includes the content of large variables" do
-            html = error_page.do_variables("index" => 0)[:html]
+          it 'includes the content of large variables' do
+            html = error_page.do_variables('index' => 0)[:html]
             expect(html).to include(content)
-            expect(html).to_not include("object too large")
+            expect(html).to_not include('object too large')
           end
         end
       else
-        it "tells the user to add binding_of_caller to their gemfile to get fancy features" do
-          html = error_page.do_variables("index" => 0)[:html]
-          expect(html).to include(%{gem "binding_of_caller"})
+        it 'tells the user to add binding_of_caller to their gemfile to get fancy features' do
+          html = error_page.do_variables('index' => 0)[:html]
+          expect(html).to include(%(gem "binding_of_caller"))
         end
       end
     end
 
     it "doesn't die if the source file is not a real filename" do
       allow(exception).to receive(:backtrace).and_return([
-        "<internal:prelude>:10:in `spawn_rack_application'"
-      ])
-      expect(response).to include("Source unavailable")
+                                                           "<internal:prelude>:10:in `spawn_rack_application'"
+                                                         ])
+      expect(response).to include('Source unavailable')
     end
 
     context 'with an exception with blank lines' do
@@ -135,7 +147,13 @@ module BetterErrors
         end
       end
 
-      let!(:exception) { raise SpacedError, "Danger Warning!" rescue $! }
+      let!(:exception) do
+        begin
+                           raise SpacedError, 'Danger Warning!'
+                         rescue StandardError
+                           $ERROR_INFO
+                         end
+      end
 
       it 'does not include leading blank lines in exception_message' do
         expect(exception.message).to match(/\A\n\n/)
@@ -144,8 +162,14 @@ module BetterErrors
     end
 
     describe '#do_eval' do
-      let(:exception) { exception_binding.eval("raise") rescue $! }
-      subject(:do_eval) { error_page.do_eval("index" => 0, "source" => command) }
+      let(:exception) do
+        begin
+                          exception_binding.eval('raise')
+                        rescue StandardError
+                          $ERROR_INFO
+                        end
+      end
+      subject(:do_eval) { error_page.do_eval('index' => 0, 'source' => command) }
       let(:command) { 'EvalTester.stuff_was_done(:yep)' }
       before do
         stub_const('EvalTester', eval_tester)
@@ -154,27 +178,27 @@ module BetterErrors
 
       context 'without binding_of_caller' do
         before do
-          skip("Disabled with binding_of_caller") if defined? ::BindingOfCaller
+          skip('Disabled with binding_of_caller') if defined? ::BindingOfCaller
         end
 
-        it "does not evaluate the code" do
+        it 'does not evaluate the code' do
           do_eval
           expect(eval_tester).to_not have_received(:stuff_was_done).with(:yep)
         end
 
         it 'returns an error indicating no REPL' do
           expect(do_eval).to include(
-            error: "REPL unavailable in this stack frame",
+            error: 'REPL unavailable in this stack frame'
           )
         end
       end
       context 'with binding_of_caller available' do
         before do
-          skip("Disabled without binding_of_caller") unless defined? ::BindingOfCaller
+          skip('Disabled without binding_of_caller') unless defined? ::BindingOfCaller
         end
 
         context 'with Pry disabled or unavailable' do
-          it "evaluates the code" do
+          it 'evaluates the code' do
             do_eval
             expect(eval_tester).to have_received(:stuff_was_done).with(:yep)
           end
@@ -184,14 +208,14 @@ module BetterErrors
               highlighted_input: /stuff_was_done/,
               prefilled_input: '',
               prompt: '>>',
-              result: "=> \"response\"\n",
+              result: "=> \"response\"\n"
             )
           end
         end
 
         context 'with Pry enabled' do
           before do
-            skip("Disabled without pry") unless defined? ::Pry
+            skip('Disabled without pry') unless defined? ::Pry
 
             BetterErrors.use_pry!
             # Cause the provider to be unselected, so that it will be re-detected.
@@ -206,7 +230,7 @@ module BetterErrors
             BetterErrors::REPL.send(:remove_const, :Pry)
           end
 
-          it "evaluates the code" do
+          it 'evaluates the code' do
             BetterErrors::REPL.provider
             do_eval
             expect(eval_tester).to have_received(:stuff_was_done).with(:yep)
@@ -217,7 +241,7 @@ module BetterErrors
               highlighted_input: /stuff_was_done/,
               prefilled_input: '',
               prompt: '>>',
-              result: "=> \"response\"\n",
+              result: "=> \"response\"\n"
             )
           end
         end
@@ -229,26 +253,26 @@ module BetterErrors
         subject(:do_expand) { error_page.do_expand('index' => 0, 'direction' => 'up') }
         it 'should' do
           html = do_expand[:html]
-          expect(html).to include("<span class=\"\">    1</span>")
-          expect(html).to include("<span class=\"\">   10</span>")
-          expect(html).to_not include("<span class=\"\">   15</span>")
+          expect(html).to include('<span class="">    1</span>')
+          expect(html).to include('<span class="">   10</span>')
+          expect(html).to_not include('<span class="">   15</span>')
         end
       end
       context 'requesting one time more lines of code in the lower direction' do
         it 'should returns the codes from line 1 until line 15' do
           html = error_page.do_expand('index' => 0, 'direction' => 'down')[:html]
-          expect(html).to include("<span class=\"\">    1</span>")
-          expect(html).to include("<span class=\"\">   15</span>")
-          expect(html).to_not include("<span class=\"\">   16</span>")
+          expect(html).to include('<span class="">    1</span>')
+          expect(html).to include('<span class="">   15</span>')
+          expect(html).to_not include('<span class="">   16</span>')
         end
       end
       context 'requesting two times more lines of code in the lower direction' do
         it 'should returns the codes from line 1 until line 20' do
           error_page.do_expand('index' => 0, 'direction' => 'down')
           html = error_page.do_expand('index' => 0, 'direction' => 'down')[:html]
-          expect(html).to include("<span class=\"\">    1</span>")
-          expect(html).to include("<span class=\"\">   20</span>")
-          expect(html).to_not include("<span class=\"\">   21</span>")
+          expect(html).to include('<span class="">    1</span>')
+          expect(html).to include('<span class="">   20</span>')
+          expect(html).to_not include('<span class="">   21</span>')
         end
       end
     end
